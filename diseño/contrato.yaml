@@ -1,0 +1,357 @@
+openapi: 3.0.3
+info:
+  title: Prueba técnica | Afore Coppel
+  description: >
+    API para la gestión de productos y usuarios. 
+    Soporta roles de Administrador (escritura/auditoría) y Usuarios Anónimos (lectura).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api
+    description: Servidor de Desarrollo Local
+
+# Definición de seguridad global (JWT)
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # --- Modelos de Dominio ---
+    Product:
+      type: object
+      required:
+        - sku
+        - name
+        - price
+        - brand
+      properties:
+        sku:
+          type: string
+          description: Identificador único del producto (Stock Keeping Unit).
+          example: "ELEC-001"
+        name:
+          type: string
+          example: "Laptop Gamer X1"
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 1299.99
+        brand:
+          type: string
+          example: "TechBrand"
+        description:
+          type: string
+          example: "Laptop de alto rendimiento con 16GB RAM"
+
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "admin@market.com"
+        password:
+          type: string
+          format: password
+          example: "secret123"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Token
+        type:
+          type: string
+          example: "Bearer"
+        role:
+          type: string
+          enum: [ADMIN, USER]
+          example: "ADMIN"
+
+
+    ProductAuditLog:
+      type: object
+      properties:
+        logId:
+          type: integer
+          format: int64
+        productSku:
+          type: string
+        adminUser:
+          type: string
+          format: email
+        action:
+          type: string
+          enum: [CREATE, UPDATE, DELETE]
+        changes:
+          type: string
+          description: Descripción detallada de los cambios (ej. precio de 100 a 150)
+        timestamp:
+          type: string
+          format: date-time
+
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, USER]
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+        details:
+          type: string
+
+paths:
+  # --- Autenticación ---
+  /auth/login:
+    post:
+      summary: Iniciar sesión
+      description: Retorna un JWT. Si es ADMIN tiene permisos de escritura.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Credenciales inválidas
+
+  # --- Productos ---
+  /products:
+    get:
+      summary: Listar productos
+      description: Accesible para usuarios anónimos (público).
+      tags:
+        - Products
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '404':
+          description: Not found
+
+
+    post:
+      summary: Crear producto
+      description: Requiere rol ADMIN.
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Producto creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '403':
+          description: No autorizado (No es Admin)
+
+  /products/{sku}:
+    get:
+      summary: Obtener producto por SKU
+      description: Accesible para usuarios anónimos.
+      tags:
+        - Products
+      parameters:
+        - in: path
+          name: sku
+          schema:
+            type: string
+          required: true
+          description: SKU del producto
+      responses:
+        '200':
+          description: Detalle del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Producto no encontrado
+
+    put:
+      summary: Actualizar producto
+      description: Requiere rol ADMIN. Genera log de auditoría automáticamente.
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: sku
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '403':
+          description: No autorizado
+
+    delete:
+      summary: Eliminar producto
+      description: Requiere rol ADMIN.
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: sku
+          schema:
+            type: string
+          required: true
+      responses:
+        '204':
+          description: Producto eliminado (Sin contenido)
+        '403':
+          description: No autorizado
+  # --- Usuarios (CRUD Admin) ---
+
+  /users:
+    get:
+      summary: Listar usuarios
+      description: Requiere rol ADMIN para gestionar usuarios.
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        '403':
+          description: No autorizado
+
+
+  /users/{id}:
+    get:
+      summary: Obtener usuario por ID
+      description: Requiere rol ADMIN.
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+            format: int64
+          required: true
+          description: ID del usuario
+      responses:
+        '200':
+          description: Detalle del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: Usuario no encontrado
+        '403':
+          description: No autorizado
+
+    delete:
+      summary: Eliminar usuario
+      description: Requiere rol ADMIN.
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+            format: int64
+          required: true
+          description: ID del usuario a eliminar
+      responses:
+        '204':
+          description: Usuario eliminado (Sin contenido)
+        '404':
+          description: Usuario no encontrado
+        '403':
+          description: No autorizado
+
+  # --- Auditoría (Log) ---
+  /audit/product-logs:
+    get:
+      summary: Ver logs de auditoría de productos
+      description: Requiere rol ADMIN para consultar el historial de cambios en productos.
+      tags:
+        - Audit
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de registros de auditoría
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductAuditLog'
+        '403':
+          description: No autorizado
