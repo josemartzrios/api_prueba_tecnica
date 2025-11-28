@@ -17,7 +17,8 @@ Table users {
 }
 
 Table products {
-  sku varchar(50) [pk, note: 'Stock Keeping Unit - Identificador único']
+  id bigint [pk, increment]
+  sku varchar(50) [not null, unique, note: 'Stock Keeping Unit - Identificador único']
   name varchar(255) [not null]
   price decimal(10,2) [not null, note: 'Precio mayor o igual a 0']
   brand varchar(100) [not null]
@@ -32,22 +33,24 @@ Table products {
   }
 }
 
+
+
 Table product_audit_logs {
   log_id bigint [pk, increment]
-  product_sku varchar(50) [not null]
+  product_id varchar(50) [not null]
   admin_user_id bigint [not null]
   action varchar(20) [not null, note: 'CREATE, UPDATE, DELETE']
   changes text [null, note: 'Descripción detallada de cambios (ej. precio: 100 → 150)']
-  timestamp timestamp [default: `now()`]
+  changed_at timestamp [default: `now()`]
 
   indexes {
-    product_sku
+    product_id
     admin_user_id
-    timestamp
+    changed_at
     action
   }
 }
 
--- Relaciones
-Ref: product_audit_logs.product_sku > products.sku [delete: cascade]
+
+Ref: product_audit_logs.product_id > products.id [delete: cascade]
 Ref: product_audit_logs.admin_user_id > users.id [delete: set null]
