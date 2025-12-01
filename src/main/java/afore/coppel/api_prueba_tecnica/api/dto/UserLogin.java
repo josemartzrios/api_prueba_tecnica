@@ -14,4 +14,6 @@ public class UserLogin {
 
     @NotBlank(message = "La contraseña es obligatoria")
     private String password;
+
+    private String role;
 }

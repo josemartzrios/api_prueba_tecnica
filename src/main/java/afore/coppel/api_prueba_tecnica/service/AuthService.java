@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,13 +16,14 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse login(UserLogin userLogin) {
         try {
-            // Autenticar
+            System.out.println("=== INICIO LOGIN ===");
+            System.out.println("Email recibido: " + userLogin.getEmail());
+
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             userLogin.getEmail(),
@@ -31,17 +31,22 @@ public class AuthService {
                     )
             );
 
-            // Buscar usuario
             User user = userRepository.findByEmail(userLogin.getEmail())
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-            // Generar token
-            String token = jwtUtil.generateToken(user.getEmail(), String.valueOf(user.getRole()));
+            System.out.println("Usuario encontrado: " + user.getEmail());
+            System.out.println("Role: " + user.getRole().name());
+
+            // Convierte el enum a String usando .name()
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
             return new AuthResponse(token, user.getEmail(), user.getRole().name());
 
         } catch (AuthenticationException e) {
+            System.out.println("ERROR DE AUTENTICACIÓN: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Credenciales inválidas");
         }
     }
+
 }
