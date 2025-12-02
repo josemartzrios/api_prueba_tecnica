@@ -2,6 +2,7 @@ package afore.coppel.api_prueba_tecnica.service;
 
 import afore.coppel.api_prueba_tecnica.model.Product;
 import afore.coppel.api_prueba_tecnica.repository.ProductRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -55,5 +56,35 @@ public class ProductService {
     public Product getProductBySku(String sku) {
         return productRepository.findBySku(sku)
                 .orElseThrow(() -> new NoSuchElementException("Producto con SKU " + sku + " no encontrado."));
+    }
+
+    /**
+     * Lógica para actualizar un producto por SKU.
+     */
+    @Transactional
+    public Product updateProduct(String sku, Product productDetails) {
+
+        // 1. Buscar el producto existente por SKU.
+        // Si no se encuentra, se lanza una excepción
+        // (que idealmente debería ser manejada por un @ControllerAdvice para devolver un 404).
+        Product product = productRepository.findBySku(sku)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con SKU: " + sku));
+
+        // 2. Actualizar los campos del producto existente con los nuevos detalles.
+        // **IMPORTANTE**: Ajusta estos setters a los campos reales de tu entidad Product.
+        product.setName(productDetails.getName());
+        product.setPrice(productDetails.getPrice());
+        product.setBrand(productDetails.getBrand());
+        product.setDescription(productDetails.getDescription());
+
+        // product.setCategory(productDetails.getCategory()); // Ejemplo de otro campo
+
+        // 3. Guardar la entidad actualizada.
+        Product updatedProduct = productRepository.save(product);
+
+        // 4. Generar log de auditoría (opcional, si tienes un componente de auditoría)
+        // auditService.logUpdate(sku, "Producto actualizado por el usuario actual.");
+
+        return updatedProduct;
     }
 }

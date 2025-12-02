@@ -5,6 +5,7 @@ import afore.coppel.api_prueba_tecnica.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -75,5 +76,25 @@ public class ProductController {
             // Manejo de otros errores internos, devolviendo 500
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * PUT /products/{sku}
+     * Actualiza un producto existente. Requiere el rol ADMIN.
+     */
+    @PutMapping("/{sku}")
+    // Anotación para asegurar que solo los usuarios con el rol 'ADMIN' puedan acceder.
+    // Esto es crucial para cumplir con tu especificación de seguridad.
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Product> updateProduct(
+            @PathVariable String sku,
+            @RequestBody Product productDetails) {
+
+        // El SKU del path debería coincidir con el SKU del cuerpo,
+        // pero por seguridad usamos el del path para la búsqueda.
+        Product updatedProduct = productService.updateProduct(sku, productDetails);
+
+        // Retorna el producto actualizado con el estado 200 OK
+        return new ResponseEntity<>(updatedProduct, HttpStatus.OK);
     }
 }

@@ -35,6 +35,7 @@ public class SecurityConfig {
 
                         // 1. REGLA RESTRICTIVA: POST /products requiere el rol ADMIN.
                         .requestMatchers(HttpMethod.POST, "/products").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/products/**").hasRole("ADMIN")
 
                         // 2. REGLAS PÚBLICAS: GET /products es accesible para todos.
                         .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
